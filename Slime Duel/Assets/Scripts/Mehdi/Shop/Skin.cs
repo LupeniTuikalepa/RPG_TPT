@@ -1,0 +1,8 @@
+using System.Net.Mime;
+using UnityEngine;
+
+public class Skin : MonoBehaviour
+{
+    [SerializeField] private Sprite Visual;
+    [SerializeField] public int rarity = 0; // commun = 0, rare = 1, epic = 2, legendaire = 3
+}
