@@ -38,12 +38,19 @@ public class PauseMenu : MonoBehaviour
         Debug.Log("RECOMMANCE TAFANARI");
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        SceneManager.LoadScene(0);
     }
 
     public void Quit()
-    {
-        Debug.Log("CIAO");
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(0);
+     {
+#if UNITY_EDITOR
+        Debug.Log("Je quitte la simu pour de vrai");
+        // quitte playmode quand tu test dans editor
+        UnityEditor.EditorApplication.isPlaying = false;
+            
+#else
+        Application.Quit();
+#endif
     }
+    
 }
