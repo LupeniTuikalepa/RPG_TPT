@@ -42,19 +42,19 @@ public class Slime : MonoBehaviour
         switch (classe)
         {
             case SlimeClass.Guerrier:
-                PV = 70; Mana = 10; Agi = 8; For = 15; Int = 5; Def = 10;
+                PV = 60; Mana = 10; Agi = 8; For = 10; Int = 5; Def = 35;
                 break;
             case SlimeClass.Mage:
-                PV = 50; Mana = 40; Agi = 9; For = 4; Int = 16; Def = 4;
+                PV = 35; Mana = 40; Agi = 9; For = 4; Int = 16; Def = 20;
                 break;
             case SlimeClass.Assassin:
-                PV = 55; Mana = 20; Agi = 16; For = 12; Int = 6; Def = 5;
+                PV = 40; Mana = 15; Agi = 16; For = 17; Int = 6; Def = 20;
                 break;
             case SlimeClass.Clerc:
-                PV = 60; Mana = 35; Agi = 8; For = 7; Int = 15; Def = 7;
+                PV = 40; Mana = 30; Agi = 8; For = 7; Int = 15; Def = 20;
                 break;
             case SlimeClass.Druide:
-                PV = 65; Mana = 30; Agi = 10; For = 8; Int = 12; Def = 8;
+                PV = 45; Mana = 25; Agi = 10; For = 8; Int = 12; Def = 24;
                 break;
         }
 
