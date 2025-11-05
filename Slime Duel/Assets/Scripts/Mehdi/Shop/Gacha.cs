@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Random = System.Random;
+
 
 public class Gacha : MonoBehaviour
 {
@@ -15,10 +15,19 @@ public class Gacha : MonoBehaviour
         
     }
 
-    public void pull()
+    public Skin pull()
     {
-        //rarity_preOp = 
-        //rarity_pulled = 
+        Skin pulled_skin = null;
+        // on prend la liste des slimes disponible, on les multiplie par le ratio de rareté, on rammenne chaque rang en pourcentage
+
+        int rarity_commun = 40 * Commun_Skins.Count;        //40 - 30 - 20 - 10
+        int rarity_rare = 30 * Rare_Skins.Count;
+        int rarity_epic = 20 * Epic_Skins.Count;
+        int rarity_legendary = 10 * Legendary_Skins.Count;
+        rarity_preOp = rarity_commun + rarity_rare + rarity_epic + rarity_legendary;
+        rarity_pulled = Random.Range(1, rarity_preOp + 1);
+        //if else <- pour chaque rareté      commun, commun + rare, commun + rare + epic, ...
+        return pulled_skin;
     }
     
     void Update()
