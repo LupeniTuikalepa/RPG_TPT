@@ -1,16 +1,16 @@
+using System;
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
-public class SavedData : MonoBehaviour
+[System.Serializable]
+public class SavedData
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public int[] IDs_Skins_Unlocked;
+    public int[] IDs_Skins_locked;
+    public SavedData(Gacha gacha, Inventaire inventaire)
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        IDs_Skins_Unlocked = gacha.ID_Dump().ToArray();
+        IDs_Skins_locked = inventaire.ID_Dump().ToArray();
     }
 }
