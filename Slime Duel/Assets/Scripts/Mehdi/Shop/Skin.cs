@@ -1,8 +1,9 @@
-using System.Net.Mime;
+//using System.Net.Mime;
 using UnityEngine;
 
 public enum SkinRarity
 {
+    [SerializeField] public int ID;
     Common,
     Rare,
     Epic,
