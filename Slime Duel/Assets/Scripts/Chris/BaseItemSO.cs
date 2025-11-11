@@ -12,23 +12,29 @@ public abstract class BaseItemSO : ScriptableObject
     [Header("Multiplicateurs (ex: 0.20 = +20%)")]
     public float percentInt;
 
-    // Appliqué une seule fois à l'équipement
     public virtual void ApplyOnEquip(SlimeUnit owner)
     {
-        owner.PVMax += flatPV; owner.PV += flatPV;
-        owner.Mana  += flatMana;
-        owner.Agi   += flatAgi;
-        owner.For   += flatFor;
-        owner.Int   += flatInt;
-        owner.Def   += flatDef;
+        // PV
+        owner.PVMax += flatPV;
+        owner.PV    += flatPV;
+
+        // Mana (augmente aussi le max)
+        owner.ManaMax += flatMana;
+        owner.Mana    += flatMana;
+
+        // Autres stats
+        owner.Agi += flatAgi;
+        owner.For += flatFor;
+        owner.Int += flatInt;
+        owner.Def += flatDef;
 
         if (Mathf.Abs(percentInt) > 0.0001f)
             owner.Int = Mathf.RoundToInt(owner.Int * (1f + percentInt));
 
-        owner.PV = Mathf.Clamp(owner.PV, 0, owner.PVMax);
+        owner.ClampRuntime();
     }
 
-    // ===== Hooks Items (tous en SlimeUnit) =====
+    // ===== Hooks Items =====
     public virtual void OnEquip(SlimeUnit owner, ItemRuntime rt) { }
     public virtual void OnBattleStart(SlimeUnit owner, ItemRuntime rt) { }
     public virtual void OnTurnStart(SlimeUnit owner, ItemRuntime rt) { }

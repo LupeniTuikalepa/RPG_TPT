@@ -23,7 +23,6 @@ public class SlimeHUD : MonoBehaviour
 
     void TryAutoWire()
     {
-        // si on laisse vide, on tente par noms standard dans le prefab
         if (!nameText) nameText = transform.Find("Name")?.GetComponent<TextMeshProUGUI>();
         if (!hpText)   hpText   = transform.Find("HPText")?.GetComponent<TextMeshProUGUI>();
         if (!mpText)   mpText   = transform.Find("MPText")?.GetComponent<TextMeshProUGUI>();
@@ -37,17 +36,18 @@ public class SlimeHUD : MonoBehaviour
 
         if (hpSlider)
         {
-            if (hpSlider.maxValue != unit.PVMax) hpSlider.maxValue = unit.PVMax;
-            if (hpSlider.value    != unit.PV)    hpSlider.value    = unit.PV;
+            hpSlider.maxValue = unit.PVMax;
+            hpSlider.value    = unit.PV;
         }
         if (mpSlider)
         {
-            if (mpSlider.value != unit.Mana) mpSlider.value = unit.Mana;
+            mpSlider.maxValue = unit.ManaMax;   // <<< utilise ManaMax
+            mpSlider.value    = unit.Mana;
         }
 
-        if (nameText) nameText.text = unit.slimeName;
+        if (nameText) nameText.text = unit.slimeName; // ou $"{unit.slimeName} — {unit.classe}"
         if (hpText)   hpText.text   = $"{unit.PV}/{unit.PVMax}";
-        if (mpText)   mpText.text   = $"{unit.Mana}";
+        if (mpText)   mpText.text   = $"{unit.Mana}/{unit.ManaMax}";
     }
 
     public void RefreshImmediate() => LateUpdate();

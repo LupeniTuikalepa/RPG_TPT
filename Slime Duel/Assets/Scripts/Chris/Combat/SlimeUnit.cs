@@ -16,10 +16,10 @@ public class SlimeUnit : MonoBehaviour
 
     [Header("Objet équipé (facultatif)")]
     public BaseItemSO equippedItem;
-    public ItemRuntime itemRuntime; 
+    public ItemRuntime itemRuntime;
 
     [Header("Runtime")]
-    public int PV, PVMax, Mana, Agi, For, Int, Def;
+    public int PV, PVMax, Mana, ManaMax, Agi, For, Int, Def;   // <<< ManaMax ajouté
     public bool IsAlive => PV > 0;
 
     // Statuts actifs
@@ -40,8 +40,9 @@ public class SlimeUnit : MonoBehaviour
             }
         }
 
-        PVMax = PV = Mathf.Max(1, baseStats.PV);
-        Mana = baseStats.Mana; Agi = baseStats.Agi; For = baseStats.For; Int = baseStats.Int; Def = baseStats.Def;
+        PVMax   = PV   = Mathf.Max(1, baseStats.PV);
+        ManaMax = Mana = Mathf.Max(0, baseStats.Mana);
+        Agi = baseStats.Agi; For = baseStats.For; Int = baseStats.Int; Def = baseStats.Def;
 
         // Equip item
         if (equippedItem != null)
@@ -50,11 +51,16 @@ public class SlimeUnit : MonoBehaviour
             itemRuntime = new ItemRuntime(equippedItem);
             equippedItem.OnEquip(this, itemRuntime);
         }
+
+        ClampRuntime();
     }
 
     // ======== Combat Utilities ========
+    public void SpendMana(int c)
+    {
+        Mana = Mathf.Clamp(Mana - Mathf.Max(0, c), 0, ManaMax);
+    }
 
-    public void SpendMana(int c) => Mana = Mathf.Max(0, Mana - c);
     public void Heal(int v){ PV = Mathf.Min(PVMax, PV + Mathf.Abs(v)); }
     public void HealPercent(float p){ Heal(Mathf.CeilToInt(PVMax * Mathf.Clamp01(p))); }
 
@@ -62,21 +68,18 @@ public class SlimeUnit : MonoBehaviour
     {
         int dmg = kind == DamageKind.True ? Mathf.Max(0, raw) : Mathf.Max(1, raw - Def);
         PV = Mathf.Max(0, PV - dmg);
-
         equippedItem?.OnReceiveHit(this, null, dmg, itemRuntime);
-
         return dmg;
     }
 
     // ======== Item Hooks ========
-    public void BeginBattle()       => equippedItem?.OnBattleStart(this, itemRuntime);
-    public void BeginTurn()         => equippedItem?.OnTurnStart(this, itemRuntime);
+    public void BeginBattle()       { equippedItem?.OnBattleStart(this, itemRuntime); ClampRuntime(); }
+    public void BeginTurn()         { equippedItem?.OnTurnStart(this, itemRuntime);   ClampRuntime(); }
     public void OnAttack(SlimeUnit t)   => equippedItem?.OnAttack(this, t, itemRuntime);
-    public void OnKill(SlimeUnit v)     => equippedItem?.OnKill(this, v, itemRuntime);
+    public void OnKill(SlimeUnit v)     { equippedItem?.OnKill(this, v, itemRuntime); ClampRuntime(); }
     public void OnSpellCast(SlimeUnit t)=> equippedItem?.OnSpellCast(this, t, itemRuntime);
 
     // ======== Status System ========
-
     public void AddStatus(StatusSO so, int stacks = 1, int turns = 1)
     {
         statuses.Add(new StatusInstance(so, stacks, turns));
@@ -109,29 +112,31 @@ public class SlimeUnit : MonoBehaviour
         }
     }
 
-    // ======== UTILITAIRES POUR LES OBJETS (ajoutés) ========
-
+    // ======== UTILITAIRES POUR LES OBJETS ========
     public void AddAllStats(int d)
     {
         PVMax = Mathf.Max(1, PVMax + d);
         PV    = Mathf.Clamp(PV + d, 0, PVMax);
-        Mana += d;
-        Agi  += d;
-        For  += d;
-        Int  += d;
-        Def  += d;
+
+        ManaMax = Mathf.Max(0, ManaMax + d);   // on fait aussi évoluer le max
+        Mana    = Mathf.Clamp(Mana + d, 0, ManaMax);
+
+        Agi  += d; For += d; Int += d; Def += d;
         ClampRuntime();
     }
 
     public void ClampRuntime()
     {
-        PVMax = Mathf.Max(1, PVMax);
-        PV    = Mathf.Clamp(PV, 0, PVMax);
-        Mana = Mathf.Max(0, Mana);
-        Agi  = Mathf.Max(0, Agi);
-        For  = Mathf.Max(0, For);
-        Int  = Mathf.Max(0, Int);
-        Def  = Mathf.Max(0, Def);
+        PVMax   = Mathf.Max(1, PVMax);
+        ManaMax = Mathf.Max(0, ManaMax);
+
+        PV   = Mathf.Clamp(PV,   0, PVMax);
+        Mana = Mathf.Clamp(Mana, 0, ManaMax);
+
+        Agi = Mathf.Max(0, Agi);
+        For = Mathf.Max(0, For);
+        Int = Mathf.Max(0, Int);
+        Def = Mathf.Max(0, Def);
     }
 }
 
@@ -150,6 +155,7 @@ public class StatusInstance
         this.turns = turns;
     }
 }
+
 
 
 
