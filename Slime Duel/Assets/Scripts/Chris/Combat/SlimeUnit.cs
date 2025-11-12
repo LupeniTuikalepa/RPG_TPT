@@ -5,6 +5,11 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class SlimeUnit : MonoBehaviour
 {
+ [Header("Expérience et niveau")]   
+    public int CurrentExp = 0;
+    public int NextLvl = 100;
+    public int Lvl = 1;
+    
     [Header("Données")]
     public string slimeName = "Slime";
     public SlimeClass classe;
@@ -25,7 +30,7 @@ public class SlimeUnit : MonoBehaviour
 
     // === NEW: évènement & guard de mort ===
     public event Action<SlimeUnit> Died;
-    private bool deathHandled = false;
+    public bool deathHandled = false;
 
     // Statuts actifs
     public readonly List<StatusInstance> statuses = new();
