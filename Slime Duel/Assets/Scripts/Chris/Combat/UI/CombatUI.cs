@@ -32,10 +32,10 @@ public class CombatUI : MonoBehaviour
 
         foreach (var act in unit.actions)
         {
-            if (!act.CanPay(unit)) continue;
-
+            // Affiche tout et grise si non jouable (plus ergonomique)
             var btn = Instantiate(skillButtonPrefab, skillPanel.transform);
-            btn.GetComponentInChildren<TextMeshProUGUI>().text = act.actionName;
+            btn.GetComponentInChildren<TextMeshProUGUI>().text = $"{act.actionName} ({act.manaCost})";
+            btn.interactable = act.CanPay(unit);
 
             btn.onClick.AddListener(() => SelectSkill(act));
             tempButtons.Add(btn);
@@ -47,16 +47,32 @@ public class CombatUI : MonoBehaviour
         pendingSkill = act;
         skillPanel.SetActive(false);
 
+        // Résout les cibles possibles
+        List<SlimeUnit> targets = BattleSystem.I.GetValidTargetsFor(act, currentUnit);
+
+        // Si aucune cible à choisir (Self / All / ou 1 seule option) → exécuter direct
+        bool needsTargetSelection =
+            (act.targetMode == TargetMode.AllySingle || act.targetMode == TargetMode.EnemySingle)
+            && targets.Count > 1;
+
+        if (!needsTargetSelection)
+        {
+            targetPanel.SetActive(false);
+            ClearButtons();
+
+            SlimeUnit t = targets.Count > 0 ? targets[0] : null; // optionnel
+            BattleSystem.I.PlayerCastsSkill(currentUnit, pendingSkill, t);
+            return;
+        }
+
+        // Sinon: afficher la liste de cibles
         ClearButtons();
         targetPanel.SetActive(true);
-
-        List<SlimeUnit> targets = BattleSystem.I.GetValidTargetsFor(act, currentUnit);
 
         foreach (var t in targets)
         {
             var btn = Instantiate(targetButtonPrefab, targetPanel.transform);
             btn.GetComponentInChildren<TextMeshProUGUI>().text = t.slimeName;
-
             btn.onClick.AddListener(() => ExecuteSkill(t));
             tempButtons.Add(btn);
         }
@@ -73,7 +89,7 @@ public class CombatUI : MonoBehaviour
 
     void ClearButtons()
     {
-        foreach (var b in tempButtons) Destroy(b.gameObject);
+        foreach (var b in tempButtons) if (b) Destroy(b.gameObject);
         tempButtons.Clear();
     }
 }

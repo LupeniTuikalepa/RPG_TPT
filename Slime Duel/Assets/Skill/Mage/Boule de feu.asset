@@ -25,7 +25,7 @@ MonoBehaviour:
   usePVMax: 0
   useMissingPV: 0
   percentFor: 0
-  percentInt: 0.5
+  percentInt: 3
   percentDef: 0
   percentPVMax: 0
   percentMissingPV: 0

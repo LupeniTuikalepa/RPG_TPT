@@ -26,14 +26,14 @@ MonoBehaviour:
   useMissingPV: 0
   percentFor: 0.33
   percentInt: 0
-  percentDef: 0
+  percentDef: 0.33
   percentPVMax: 0
   percentMissingPV: 0
   hits: 1
   randomSplitHits: 0
   doesHeal: 0
   healPercentInt: 0
-  applyStatus: {fileID: 11400000, guid: 445da705dab257740852d7184505fce7, type: 2}
+  applyStatus: {fileID: 0}
   applyStatusTurns: 1
   applyStatusStacks: 1
   addPercentFor: 0
