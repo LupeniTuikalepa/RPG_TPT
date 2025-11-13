@@ -4,7 +4,7 @@ public class SelectionSlimeUI : MonoBehaviour
 {
     public SlimeSelection manager; // drag dans inspector
 
-    public void SetSlime(Slime s)
+    public void SetSlime(SlimeUnit s)
     {
         manager.SetSlime(s);
     }

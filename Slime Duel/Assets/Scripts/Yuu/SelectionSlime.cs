@@ -3,14 +3,14 @@ using Yuu;
 
 public class SlimeSelection : MonoBehaviour
 {
-    public Slime slimeActif;
+    public SlimeUnit slimeActif;
 
     int slimeChoisis = 0;
 
     public GameObject panel; // ton panel UI main
     public GameStartManager startManager;
 
-    public void SetSlime(Slime s)
+    public void SetSlime(SlimeUnit s)
     {
         slimeActif = s;
     }
