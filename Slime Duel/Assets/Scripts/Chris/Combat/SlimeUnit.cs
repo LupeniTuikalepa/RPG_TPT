@@ -175,6 +175,81 @@ public class SlimeUnit : MonoBehaviour
         Mana = Mathf.Min(ManaMax, Mana + add);
         Debug.Log($"{slimeName} régénère {add} mana ({Mana}/{ManaMax})");
     }
+    
+    // Monter de niveau
+
+    public void LvlUp()
+    {
+        Lvl++;
+        switch (classe)
+        {
+            case SlimeClass.Guerrier : 
+                PVMax += 10;
+                PV = PVMax;
+                
+                ManaMax += 3;
+                Mana = ManaMax;
+
+                For += 3;
+                Def += 5;
+                Int += 1;
+                Agi += 1;
+                break;
+            
+            case SlimeClass.Assassin :
+                PVMax += 3;
+                PV = PVMax;
+                
+                ManaMax += 3;
+                Mana = ManaMax;
+                
+                For += 5;
+                Def += 2;
+                Int += 1;
+                Agi += 5;
+                break;
+            
+            case SlimeClass.Mage :
+                PVMax += 3;
+                PV = PVMax;
+                
+                ManaMax += 10;
+                Mana = ManaMax;
+                
+                For += 2;
+                Def += 2;
+                Int += 5;
+                Agi += 2;
+                break;
+            
+            case SlimeClass.Clerc :
+                PVMax += 5;
+                PV = PVMax;
+                
+                ManaMax += 10;
+                Mana = ManaMax;
+                
+                For += 3;
+                Def += 2;
+                Int += 5;
+                Agi += 4;
+                break;
+            
+            case SlimeClass.Druide :
+                PVMax += 6;
+                PV = PVMax;
+                
+                ManaMax += 8;
+                Mana = ManaMax;
+                
+                For += 3;
+                Def += 3;
+                Int += 3;
+                Agi += 3;
+                break;
+        }
+        Debug.Log($"{slimeName} monte au niveau {Lvl} ! Stats améliorées : PV={PVMax}, Mana={ManaMax}, For={For}, Int={Int}, Agi={Agi}, Def={Def}");
+    }
 
 }
 

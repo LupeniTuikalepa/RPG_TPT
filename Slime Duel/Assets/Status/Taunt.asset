@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 0}
-  m_Name: New Status_Taunt
+  m_Name: Taunt
   m_EditorClassIdentifier: Assembly-CSharp::Status_Taunt
   statusName: Provocation
   tags: 2

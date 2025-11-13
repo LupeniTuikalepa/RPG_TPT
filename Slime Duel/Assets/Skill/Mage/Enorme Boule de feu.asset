@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4019be2ee37381a449173b81080376e4, type: 3}
-  m_Name: Grosse frappe
+  m_Name: Enorme Boule de feu
   m_EditorClassIdentifier: Assembly-CSharp::ActionSO
-  actionName: Grosse frappe
+  actionName: 
   description: 
-  manaCost: 10
+  manaCost: 0
   targetMode: 3
   isSignature: 0
-  doesDamage: 1
+  doesDamage: 0
   damageKind: 0
-  useFor: 1
+  useFor: 0
   useInt: 0
   useDef: 0
   usePVMax: 0
   useMissingPV: 0
-  percentFor: 2
+  percentFor: 0
   percentInt: 0
   percentDef: 0
   percentPVMax: 0

@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4019be2ee37381a449173b81080376e4, type: 3}
-  m_Name: Boule de feu
+  m_Name: Grosse Boule de Feu
   m_EditorClassIdentifier: Assembly-CSharp::ActionSO
-  actionName: Boule de feu
-  description: "D\xE9g\xE2ts de zone inflige br\xFBlure aux ennemies. \r\nD\xE9g\xE2ts
-    : 50% Int\r\n"
-  manaCost: 10
+  actionName: Grosse boule de feu
+  description: "D\xE9g\xE2ts de zone inflige br\xFBlure les ennemies\r\nD\xE9g\xE2ts
+    : 150% Int AOE"
+  manaCost: 20
   targetMode: 4
   isSignature: 0
-  doesDamage: 1
+  doesDamage: 0
   damageKind: 1
   useFor: 0
   useInt: 1
@@ -26,7 +26,7 @@ MonoBehaviour:
   usePVMax: 0
   useMissingPV: 0
   percentFor: 0
-  percentInt: 0.9
+  percentInt: 1.5
   percentDef: 0
   percentPVMax: 0
   percentMissingPV: 0

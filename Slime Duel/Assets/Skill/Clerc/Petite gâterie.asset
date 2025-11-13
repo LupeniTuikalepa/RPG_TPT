@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: "Petite g\xE2terie"
   m_EditorClassIdentifier: Assembly-CSharp::ActionSO
   actionName: "Petite g\xE2terie"
-  description: 
+  description: "Soigne un alli\xE9.\r\nSoin : 80% Int\r\n"
   manaCost: 10
   targetMode: 1
   isSignature: 0
@@ -32,7 +32,7 @@ MonoBehaviour:
   hits: 1
   randomSplitHits: 0
   doesHeal: 1
-  healPercentInt: 0.6
+  healPercentInt: 0.8
   applyStatus: {fileID: 0}
   applyStatusTurns: 1
   applyStatusStacks: 1

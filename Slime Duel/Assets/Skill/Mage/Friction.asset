@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Friction
   m_EditorClassIdentifier: Assembly-CSharp::ActionSO
   actionName: Friction
-  description: 
+  description: "Gros d\xE9g\xE2t sur une cible \r\nD\xE9g\xE2t : 120% Int"
   manaCost: 12
   targetMode: 3
   isSignature: 0

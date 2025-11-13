@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4019be2ee37381a449173b81080376e4, type: 3}
-  m_Name: Formation tortue
+  m_Name: "Grande g\xE2terie 1"
   m_EditorClassIdentifier: Assembly-CSharp::ActionSO
-  actionName: Formation tortue
-  description: Augmente la Def de 20%.
-  manaCost: 10
-  targetMode: 0
+  actionName: "Grande g\xE2terie"
+  description: "Soigne beaucoup un alli\xE9.\r\nSoin : 150% Int"
+  manaCost: 20
+  targetMode: 1
   isSignature: 0
   doesDamage: 0
   damageKind: 0
@@ -31,14 +31,14 @@ MonoBehaviour:
   percentMissingPV: 0
   hits: 1
   randomSplitHits: 0
-  doesHeal: 0
-  healPercentInt: 0
+  doesHeal: 1
+  healPercentInt: 1.5
   applyStatus: {fileID: 0}
-  applyStatusTurns: 3
+  applyStatusTurns: 1
   applyStatusStacks: 1
   addPercentFor: 0
   addPercentInt: 0
   addPercentAgi: 0
-  addPercentDef: 20
+  addPercentDef: 0
   drainMana: 0
   drainManaPercentOfTargetRemaining: 0

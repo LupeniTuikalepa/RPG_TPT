@@ -38,7 +38,7 @@ public class ExperienceManager : MonoBehaviour
         while (slime.CurrentExp >= slime.NextLvl)
         {
             slime.CurrentExp -= slime.NextLvl; // Consomme l'XP pour le niveau
-            slime.Lvl++;
+            slime.LvlUp();
             slime.NextLvl = Mathf.CeilToInt(slime.NextLvl * 1.5f); // Augmente la difficulté
             Debug.Log($"{slime.slimeName} passe au niveau {slime.Lvl} !");
 
