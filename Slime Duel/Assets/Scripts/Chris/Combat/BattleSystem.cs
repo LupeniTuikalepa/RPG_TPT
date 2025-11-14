@@ -11,8 +11,13 @@ public class BattleSystem : MonoBehaviour
 
     [Header("Équipe A (Joueur)")]
     public SlimeUnit[] teamA = new SlimeUnit[3];
+    
     [Header("Équipe B (IA)")]
     public SlimeUnit[] teamB = new SlimeUnit[3];
+
+    [Header("Génération de vagues ennemies")]
+    public BaseItemSO[] enemyItemPool;   // objets possibles pour les ennemis
+    public Skin[]       enemySkinPool;   // skins possibles pour les ennemis
 
     private readonly List<SlimeUnit> turnOrder = new();
     private int turnIndex = -1;
@@ -20,11 +25,9 @@ public class BattleSystem : MonoBehaviour
 
     // Bloque Update pendant le choix du joueur
     private bool waitingForPlayer = false;
-    // NEW : empêche de lancer plusieurs coroutines IA
+    // empêche de lancer plusieurs coroutines IA
     private bool enemyTurnRunning = false;
 
-    
-    
     void Start()
     {
         BuildTurnOrder();
@@ -38,7 +41,6 @@ public class BattleSystem : MonoBehaviour
 
         NextTurnStart();
     }
-
 
     void Update()
     {
@@ -102,10 +104,30 @@ public class BattleSystem : MonoBehaviour
     {
         if (IsBattleOver())
         {
-            var res = TeamAlive(teamA) ? "ÉQUIPE A GAGNE" : TeamAlive(teamB) ? "ÉQUIPE B GAGNE" : "Match nul";
+            bool aAlive = TeamAlive(teamA);
+            bool bAlive = TeamAlive(teamB);
+
+            string res;
+            if (aAlive && !bAlive)      res = "ÉQUIPE A GAGNE";
+            else if (!aAlive && bAlive) res = "ÉQUIPE B GAGNE";
+            else                        res = "Match nul";
+
             Debug.Log($"=== FIN DU COMBAT — {res} ===");
             CombatLogUI.I?.Log(null, res); // neutre
-            enabled = false;
+
+            // Affiche l’écran de résultat
+            if (CombatResultUI.I != null)
+            {
+                if (aAlive && !bAlive)
+                    CombatResultUI.I.ShowWin();   // joueur gagne
+                else if (!aAlive && bAlive)
+                    CombatResultUI.I.ShowLose();  // joueur perd
+                else
+                    CombatResultUI.I.ShowDraw();  // égalité
+            }
+
+            enabled = false;              // stoppe le BattleSystem
+            CombatUI.I?.HideAll();        // masque les boutons
             return;
         }
 
@@ -220,7 +242,75 @@ public class BattleSystem : MonoBehaviour
         act.ExecuteOnTarget(user, target, allies, enemies);
         EndTurn();
     }
+
+    // =====================================================================
+    //              GESTION DES VAGUES  (bouton "Suivant")
+    // =====================================================================
+
+    // appelé par CombatResultUI quand on clique sur "Suivant"
+    public void StartNextWave()
+    {
+        // si l'équipe du joueur est morte, on ne relance pas
+        if (!TeamAlive(teamA))
+        {
+            Debug.Log("Impossible de lancer une nouvelle vague : l'équipe A est vaincue.");
+            return;
+        }
+
+        // niveau de départ = plus haut niveau des ennemis actuels (ou 1)
+        int previousEnemyLevel = 1;
+        foreach (var e in teamB)
+            if (e != null)
+                previousEnemyLevel = Mathf.Max(previousEnemyLevel, e.Lvl);
+
+        int newLevel = previousEnemyLevel + 1;
+
+        // reconfigure TOUTE l'équipe ennemie
+        foreach (var e in teamB)
+        {
+            if (e == null) continue;
+
+            var cls  = GetRandomClass();
+            var item = (enemyItemPool != null && enemyItemPool.Length > 0)
+                ? enemyItemPool[Random.Range(0, enemyItemPool.Length)]
+                : null;
+            var skin = (enemySkinPool != null && enemySkinPool.Length > 0)
+                ? enemySkinPool[Random.Range(0, enemySkinPool.Length)]
+                : null;
+
+            // méthode ajoutée dans SlimeUnit
+            e.ConfigureForBattle(cls, newLevel, item, skin, true);
+        }
+
+        // ré-oriente les sprites
+        foreach (var s in teamA)
+            if (s) s.SetFacingLeft(false);
+        foreach (var s in teamB)
+            if (s) s.SetFacingLeft(true);
+
+        // reset état du système
+        waitingForPlayer = false;
+        enemyTurnRunning = false;
+        Active = null;
+        enabled = true;
+
+        // reconstruit l'ordre de tour
+        BuildTurnOrder();
+
+        // masque l'écran de résultat
+        CombatResultUI.I?.HideAll();
+
+        // relance le combat
+        NextTurnStart();
+    }
+
+    SlimeClass GetRandomClass()
+    {
+        var values = System.Enum.GetValues(typeof(SlimeClass));
+        return (SlimeClass)values.GetValue(Random.Range(0, values.Length));
+    }
 }
+
 
 
 

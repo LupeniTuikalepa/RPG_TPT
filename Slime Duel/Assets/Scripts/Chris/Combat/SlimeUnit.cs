@@ -40,7 +40,6 @@ public class SlimeUnit : MonoBehaviour
     // ======== VISUEL (flash + skin) ========
     [Header("Visuel")]
     public SpriteRenderer spriteRenderer;   // sprite du slime
-    //public Sprite skinSprite;              // sprite de skin assignable dans l’inspector
     public Color hitFlashColor  = Color.red;
     public Color healFlashColor = Color.green;
     public float flashDuration  = 0.12f;
@@ -56,14 +55,7 @@ public class SlimeUnit : MonoBehaviour
         // ========= Stats =========
         if (baseStats.PV == 0 && baseStats.Mana == 0)
         {
-            switch (classe)
-            {
-                case SlimeClass.Guerrier: baseStats = new Stats{PV=60,Mana=10,Agi=8, For=10,Int=5, Def=35}; break;
-                case SlimeClass.Mage:     baseStats = new Stats{PV=35,Mana=40,Agi=9, For=4, Int=16,Def=20}; break;
-                case SlimeClass.Assassin: baseStats = new Stats{PV=40,Mana=15,Agi=16,For=17,Int=6, Def=20}; break;
-                case SlimeClass.Clerc:    baseStats = new Stats{PV=60,Mana=30,Agi=8, For=7, Int=15,Def=25}; break;
-                case SlimeClass.Druide:   baseStats = new Stats{PV=45,Mana=25,Agi=10,For=8, Int=12,Def=24}; break;
-            }
+            baseStats = GetBaseStatsForClass(classe);
         }
 
         PVMax   = PV   = Mathf.Max(1, baseStats.PV);
@@ -89,7 +81,7 @@ public class SlimeUnit : MonoBehaviour
             referenceSize = spriteRenderer.bounds.size;
 
             // 2) applique le skin en conservant la taille
-            if (MonSkin.Visual != null)
+            if (MonSkin != null && MonSkin.Visual != null)
                 ApplySkinSameSize();
         }
 
@@ -99,11 +91,89 @@ public class SlimeUnit : MonoBehaviour
         ClampRuntime();
     }
 
+    // ----------------------------------------------------------------------
+    //  MÉTHODE UTILISÉE PAR LE BATTLESYSTEM POUR RECONFIGURER UN SLIME
+    // ----------------------------------------------------------------------
+    public void ConfigureForBattle(SlimeClass newClass, int targetLevel, BaseItemSO newItem, Skin newSkin, bool faceLeft)
+    {
+        // réactive l'objet et reset mort / statuts
+        gameObject.SetActive(true);
+        deathHandled = false;
+        statuses.Clear();
+
+        // données de base
+        classe   = newClass;
+        MonSkin  = newSkin;
+        equippedItem = newItem;
+        itemRuntime  = null;
+
+        // remet le niveau à 1, puis on utilisera LvlUp() pour monter
+        Lvl = 1;
+
+        // stats de base de la classe
+        baseStats = GetBaseStatsForClass(classe);
+
+        PVMax   = PV   = Mathf.Max(1, baseStats.PV);
+        ManaMax = Mana = Mathf.Max(0, baseStats.Mana);
+        Agi = baseStats.Agi; For = baseStats.For; Int = baseStats.Int; Def = baseStats.Def;
+
+        // appliquer l'objet
+        if (equippedItem != null)
+        {
+            equippedItem.ApplyOnEquip(this);
+            itemRuntime = new ItemRuntime(equippedItem);
+            equippedItem.OnEquip(this, itemRuntime);
+        }
+
+        // monter au niveau demandé en utilisant TA logique de LvlUp
+        targetLevel = Mathf.Max(1, targetLevel);
+        for (int i = 1; i < targetLevel; i++)
+            LvlUp();
+
+        // visuel / skin
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (spriteRenderer)
+        {
+            // si la taille de référence n'est pas encore définie, on la prend maintenant
+            if (referenceSize == Vector2.zero)
+                referenceSize = spriteRenderer.bounds.size;
+
+            if (MonSkin != null && MonSkin.Visual != null)
+                ApplySkinSameSize();
+
+            SetFacingLeft(faceLeft);
+        }
+
+        EnsureColliderMatchesSprite();
+        ClampRuntime();
+    }
+
+    // stats de base selon la classe (factorisé)
+    Stats GetBaseStatsForClass(SlimeClass c)
+    {
+        switch (c)
+        {
+            case SlimeClass.Guerrier: return new Stats{PV=60,Mana=10,Agi=8, For=10,Int=5, Def=35};
+            case SlimeClass.Mage:     return new Stats{PV=35,Mana=40,Agi=9, For=4, Int=16,Def=20};
+            case SlimeClass.Assassin: return new Stats{PV=40,Mana=15,Agi=16,For=17,Int=6, Def=20};
+            case SlimeClass.Clerc:    return new Stats{PV=60,Mana=30,Agi=8, For=7, Int=15,Def=25};
+            case SlimeClass.Druide:   return new Stats{PV=45,Mana=25,Agi=10,For=8, Int=12,Def=24};
+        }
+        // valeur par défaut
+        return new Stats{PV=50,Mana=20,Agi=10,For=10,Int=10,Def=10};
+    }
+
     // Applique le skin et ajuste la scale pour garder la même taille que le carré
     void ApplySkinSameSize()
     {
-        if (!spriteRenderer || MonSkin.Visual == null)
+        if (!spriteRenderer || MonSkin == null || MonSkin.Visual == null)
             return;
+
+        // si on n'a pas encore de référence, on prend la taille actuelle
+        if (referenceSize == Vector2.zero)
+            referenceSize = spriteRenderer.bounds.size;
 
         // applique le nouveau sprite
         spriteRenderer.sprite = MonSkin.Visual;
@@ -135,8 +205,7 @@ public class SlimeUnit : MonoBehaviour
         if (box == null)
             box = gameObject.AddComponent<BoxCollider2D>();
 
-        // taille du collider = taille visuelle du sprite (après scale)
-        box.size = spriteRenderer.sprite.bounds.size;
+        box.size   = spriteRenderer.sprite.bounds.size;
         box.offset = spriteRenderer.sprite.bounds.center;
     }
 
@@ -162,7 +231,6 @@ public class SlimeUnit : MonoBehaviour
 
     public int TakeDamage(int raw, DamageKind kind)
     {
-        
         int dmg = kind == DamageKind.True 
             ? Mathf.Max(0, raw) 
             : Mathf.Max(1, Mathf.RoundToInt(raw * (100f / (100f + Def))));
@@ -267,75 +335,39 @@ public class SlimeUnit : MonoBehaviour
     }
     
     // Monter de niveau
-
     public void LvlUp()
     {
         Lvl++;
         switch (classe)
         {
             case SlimeClass.Guerrier : 
-                PVMax += 10;
-                PV = PVMax;
-                
-                ManaMax += 3;
-                Mana = ManaMax;
-
-                For += 3;
-                Def += 5;
-                Int += 1;
-                Agi += 1;
+                PVMax += 10; PV = PVMax;
+                ManaMax += 3; Mana = ManaMax;
+                For += 3; Def += 5; Int += 1; Agi += 1;
                 break;
             
             case SlimeClass.Assassin :
-                PVMax += 3;
-                PV = PVMax;
-                
-                ManaMax += 3;
-                Mana = ManaMax;
-                
-                For += 5;
-                Def += 2;
-                Int += 1;
-                Agi += 5;
+                PVMax += 3; PV = PVMax;
+                ManaMax += 3; Mana = ManaMax;
+                For += 5; Def += 2; Int += 1; Agi += 5;
                 break;
             
             case SlimeClass.Mage :
-                PVMax += 3;
-                PV = PVMax;
-                
-                ManaMax += 10;
-                Mana = ManaMax;
-                
-                For += 2;
-                Def += 2;
-                Int += 5;
-                Agi += 2;
+                PVMax += 3; PV = PVMax;
+                ManaMax += 10; Mana = ManaMax;
+                For += 2; Def += 2; Int += 5; Agi += 2;
                 break;
             
             case SlimeClass.Clerc :
-                PVMax += 5;
-                PV = PVMax;
-                
-                ManaMax += 10;
-                Mana = ManaMax;
-                
-                For += 3;
-                Def += 2;
-                Int += 5;
-                Agi += 4;
+                PVMax += 5; PV = PVMax;
+                ManaMax += 10; Mana = ManaMax;
+                For += 3; Def += 2; Int += 5; Agi += 4;
                 break;
             
             case SlimeClass.Druide :
-                PVMax += 6;
-                PV = PVMax;
-                
-                ManaMax += 8;
-                Mana = ManaMax;
-                
-                For += 3;
-                Def += 3;
-                Int += 3;
-                Agi += 3;
+                PVMax += 6; PV = PVMax;
+                ManaMax += 8; Mana = ManaMax;
+                For += 3; Def += 3; Int += 3; Agi += 3;
                 break;
         }
         Debug.Log($"{slimeName} monte au niveau {Lvl} ! Stats améliorées : PV={PVMax}, Mana={ManaMax}, For={For}, Int={Int}, Agi={Agi}, Def={Def}");
@@ -395,4 +427,3 @@ public class StatusInstance
         this.turns = turns;
     }
 }
-

@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 92ed93958c292ea4c8b0cfa5f8492ebf
+guid: 1850fd927c0bda74f9e8a201bfa7c045
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8787429805962270421
-    second: slime_poro_0
+      213: 8300435762710669074
+    second: slime_mimiqui_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: slime_poro_0
+      name: slime_mimiqui_0
       rect:
         serializedVersion: 2
-        x: 739
-        y: 954
-        width: 3797
-        height: 2786
+        x: 27
+        y: 1198
+        width: 4973
+        height: 3069
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b2960f63627cc0680800000000000000
-      internalID: -8787429805962270421
+      spriteID: 217615d3952113370800000000000000
+      internalID: 8300435762710669074
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      slime_poro_0: -8787429805962270421
+      slime_mimiqui_0: 8300435762710669074
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
