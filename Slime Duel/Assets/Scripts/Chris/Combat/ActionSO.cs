@@ -11,6 +11,17 @@ public class ActionSO : ScriptableObject
     public TargetMode targetMode = TargetMode.EnemySingle;
     public bool isSignature = false;
 
+    [Header("Condition")] 
+    public int Niveau = 1;
+    public SlimeClass classe = SlimeClass.Guerrier;
+
+    public bool IsUnlocked(SlimeUnit user)
+    {
+        bool lvlOk = user.Lvl >= Niveau;
+        bool classOk = user.classe == classe;
+        return lvlOk && classOk;
+    }
+    
     [Header("Dégâts / Soins")]
     public bool doesDamage;
     public DamageKind damageKind = DamageKind.Physical;
