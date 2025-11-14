@@ -52,46 +52,139 @@ public class ActionSO : ScriptableObject
     [Range(0f, 1f)] public float drainManaPercentOfTargetRemaining = 0f;
 
     // --------- Exécution ----------
-    public bool CanPay(SlimeUnit user) => user.Mana >= manaCost && user.IsAlive;
 
+    public bool CanPay(SlimeUnit user)
+        => user != null && user.IsAlive && user.Mana >= manaCost;
+
+    /// <summary>
+    /// Version “auto” (IA ou skill sans ciblage manuel) :
+    /// les cibles sont choisies avec targetMode.
+    /// </summary>
     public void Execute(SlimeUnit user, List<SlimeUnit> allies, List<SlimeUnit> enemies)
     {
-        if (!CanPay(user)) { Debug.Log($"{user.slimeName} n'a pas assez de mana pour {actionName}"); return; }
-        user.SpendMana(manaCost);
+        if (user == null)
+        {
+            Debug.LogError("[ActionSO] Execute appelé avec user NULL sur " + name);
+            return;
+        }
+
+        if (!CanPay(user))
+        {
+            Debug.Log($"{user.slimeName} n'a pas assez de mana pour {actionName}");
+            return;
+        }
+
+        allies  ??= new List<SlimeUnit>();
+        enemies ??= new List<SlimeUnit>();
 
         var targets = ResolveTargets(user, allies, enemies);
-        if (targets.Count == 0) { Debug.Log($"{actionName}: pas de cible."); return; }
+        // nettoie les null / morts
+        targets.RemoveAll(t => t == null || !t.IsAlive);
 
+        if (targets.Count == 0)
+        {
+            Debug.Log($"{actionName}: pas de cible.");
+            return;
+        }
+
+        user.SpendMana(manaCost);
+        ApplyToTargets(user, targets);
+    }
+
+    /// <summary>
+    /// Version utilisée quand le joueur clique une cible précise (EnemySingle/AllySingle).
+    /// </summary>
+    public void ExecuteOnTarget(SlimeUnit user, SlimeUnit target, List<SlimeUnit> allies, List<SlimeUnit> enemies)
+    {
+        if (user == null)
+        {
+            Debug.LogError("[ActionSO] ExecuteOnTarget user NULL sur " + name);
+            return;
+        }
+
+        if (!CanPay(user))
+        {
+            Debug.Log($"{user.slimeName} n'a pas assez de mana pour {actionName}");
+            return;
+        }
+
+        allies  ??= new List<SlimeUnit>();
+        enemies ??= new List<SlimeUnit>();
+
+        var forcedTargets = ResolveForcedTargets(user, target, allies, enemies);
+        forcedTargets.RemoveAll(t => t == null || !t.IsAlive);
+
+        if (forcedTargets.Count == 0)
+        {
+            Debug.Log($"{actionName}: pas de cible valide (ExecuteOnTarget).");
+            return;
+        }
+
+        user.SpendMana(manaCost);
+        ApplyToTargets(user, forcedTargets);
+    }
+
+    // --- PRIVATE: construit la liste des cibles “forcées” (clic) ---
+    List<SlimeUnit> ResolveForcedTargets(SlimeUnit user, SlimeUnit target, List<SlimeUnit> allies, List<SlimeUnit> enemies)
+    {
+        var res = new List<SlimeUnit>();
+
+        switch (targetMode)
+        {
+            case TargetMode.EnemySingle:
+                if (target && enemies.Contains(target) && target.IsAlive && !target.HasTag(StatusTag.Untargetable))
+                    res.Add(target);
+                break;
+
+            case TargetMode.AllySingle:
+                if (target && allies.Contains(target) && target.IsAlive)
+                    res.Add(target);
+                break;
+
+            default:
+                // Pour Self / All / etc. → on retombe sur la logique classique
+                res = ResolveTargets(user, allies, enemies);
+                break;
+        }
+
+        return res;
+    }
+
+    // --- PRIVATE: applique dégâts/soins/effets à une liste de cibles ---
+    void ApplyToTargets(SlimeUnit user, List<SlimeUnit> targets)
+    {
         foreach (var t in targets)
         {
+            if (t == null) continue;
+
             // Heal
             if (doesHeal)
             {
                 int heal = Mathf.RoundToInt(user.Int * ApplyStatMult(user, StatusAxis.Int) * healPercentInt);
-                t.Heal(heal);
-                Debug.Log($"{user.slimeName} soigne {t.slimeName} de {heal} PV ({actionName})");
+                if (heal != 0)
+                {
+                    t.Heal(heal);
+                    Debug.Log($"{user.slimeName} soigne {t.slimeName} de {heal} PV ({actionName})");
+                }
             }
 
             // Damage
             if (doesDamage)
             {
-                int total = 0;
                 if (hits <= 1 || !randomSplitHits)
                 {
                     int raw = ComputeRaw(user, t);
-                    total = t.TakeDamage(raw, damageKind);
-                    Debug.Log($"{user.slimeName} → {t.slimeName} subit {total} ({actionName})");
+                    int dealt = t.TakeDamage(raw, damageKind);
+                    Debug.Log($"{user.slimeName} → {t.slimeName} subit {dealt} ({actionName})");
                 }
                 else
                 {
-                    // p.ex. 2 à 5 cailloux (mets hits=5 et un power progressif via plusieurs SO, ou approx aléatoire)
-                    int n = Random.Range(2, Mathf.Min(hits,5)+1);
-                    for (int i=0;i<n;i++)
+                    int n = Random.Range(2, Mathf.Min(hits, 5) + 1);
+                    for (int i = 0; i < n; i++)
                     {
-                        int raw = ComputeRaw(user, t) * (i+1) / n; // progression simple
+                        int raw = ComputeRaw(user, t) * (i + 1) / n;
                         int d = t.TakeDamage(raw, damageKind);
-                        total += d;
-                        Debug.Log($"{actionName} coup {i+1}/{n}: {d}");
+                        Debug.Log($"{actionName} coup {i + 1}/{n}: {d}");
                     }
                 }
             }
@@ -106,91 +199,122 @@ public class ActionSO : ScriptableObject
             }
 
             // Status direct
-            if (applyStatus != null)
+            if (applyStatus != null && !t.HasTag(StatusTag.Immunity))
             {
-                // immunité ?
-                if (!t.HasTag(StatusTag.Immunity))
-                {
-                    t.AddStatus(applyStatus, applyStatusStacks, applyStatusTurns);
-                    Debug.Log($"{t.slimeName} reçoit {applyStatus.statusName} ({applyStatusTurns}t)");
-                }
+                t.AddStatus(applyStatus, applyStatusStacks, applyStatusTurns);
+                Debug.Log($"{t.slimeName} reçoit {applyStatus.statusName} ({applyStatusTurns}t)");
             }
 
             // Buff/debuff % “ad-hoc”
             if (addPercentFor != 0 || addPercentInt != 0 || addPercentAgi != 0 || addPercentDef != 0)
             {
-                var temp = ScriptableObject.CreateInstance<StatusSO>();
+                // on crée un petit status simple qui applique juste des % de stats
+                var temp = ScriptableObject.CreateInstance<SimplePercentStatus>();
                 temp.statusName = "Modif%";
                 temp.percentFor = addPercentFor;
                 temp.percentInt = addPercentInt;
                 temp.percentAgi = addPercentAgi;
                 temp.percentDef = addPercentDef;
-                t.AddStatus(temp, 1, applyStatusTurns>0?applyStatusTurns:2);
+
+                int turns = applyStatusTurns > 0 ? applyStatusTurns : 2;
+                t.AddStatus(temp, 1, turns);
                 Debug.Log($"{t.slimeName} gagne modif % stats ({actionName})");
             }
         }
     }
 
+    // --------- Ciblage "auto" ----------
+
     List<SlimeUnit> ResolveTargets(SlimeUnit user, List<SlimeUnit> allies, List<SlimeUnit> enemies)
     {
         var res = new List<SlimeUnit>();
+
+        allies  ??= new List<SlimeUnit>();
+        enemies ??= new List<SlimeUnit>();
+
         switch (targetMode)
         {
-            case TargetMode.Self: res.Add(user); break;
+            case TargetMode.Self:
+                res.Add(user);
+                break;
+
             case TargetMode.AllySingle:
+            {
                 var ally = PickAlive(allies, preferTaunted:false);
-                if (ally!=null) res.Add(ally);
+                if (ally != null) res.Add(ally);
                 break;
-            case TargetMode.AllyAll: res.AddRange(allies.FindAll(a=>a && a.IsAlive)); break;
+            }
+
+            case TargetMode.AllyAll:
+                res.AddRange(allies.FindAll(a => a && a.IsAlive));
+                break;
+
             case TargetMode.EnemySingle:
+            {
                 var enemy = PickAlive(enemies, preferTaunted:true);
-                if (enemy!=null) res.Add(enemy);
+                if (enemy != null) res.Add(enemy);
                 break;
-            case TargetMode.EnemyAll: res.AddRange(enemies.FindAll(e=>e && e.IsAlive)); break;
+            }
+
+            case TargetMode.EnemyAll:
+                res.AddRange(enemies.FindAll(e => e && e.IsAlive));
+                break;
         }
         return res;
     }
 
     SlimeUnit PickAlive(List<SlimeUnit> list, bool preferTaunted)
     {
+        if (list == null || list.Count == 0) return null;
+
         var alive = list.FindAll(u => u && u.IsAlive && !u.HasTag(StatusTag.Untargetable));
         if (alive.Count == 0) return null;
+
         if (preferTaunted)
         {
             var taunts = alive.FindAll(u => u.HasTag(StatusTag.Taunt));
-            if (taunts.Count > 0) return taunts[Random.Range(0, taunts.Count)];
+            if (taunts.Count > 0)
+                return taunts[Random.Range(0, taunts.Count)];
         }
+
         return alive[Random.Range(0, alive.Count)];
     }
 
+    // --------- Calcul dégâts ----------
+
     int ComputeRaw(SlimeUnit user, SlimeUnit target)
     {
-        // multiplicateurs de stats affectés par statuts sur l'attaquant
+        if (user == null || target == null) return 0;
+
         float mFor = ApplyStatMult(user, StatusAxis.For);
         float mInt = ApplyStatMult(user, StatusAxis.Int);
         float mDef = ApplyStatMult(user, StatusAxis.Def);
 
         float raw = 0f;
-        if (useFor) raw += user.For * mFor * percentFor;
-        if (useInt) raw += user.Int * mInt * percentInt;
-        if (useDef) raw += user.Def * mDef * percentDef;
-        if (usePVMax) raw += target.PVMax * percentPVMax;          // ex ZAC E (PVmax ennemis)
-        if (useMissingPV) raw += (user.PVMax - user.PV) * percentMissingPV; // signature guerrier
+        if (useFor)       raw += user.For * mFor * percentFor;
+        if (useInt)       raw += user.Int * mInt * percentInt;
+        if (useDef)       raw += user.Def * mDef * percentDef;
+        if (usePVMax)     raw += target.PVMax * percentPVMax;
+        if (useMissingPV) raw += (user.PVMax - user.PV) * percentMissingPV;
 
         // Réduction dégâts infligés / reçus (Formation tortue)
-        if (user.HasTag(StatusTag.DmgOutDown)) raw *= 0.8f;   // -20% out
-        if (target.HasTag(StatusTag.DmgInDown)) raw *= 0.9f;  // -10% in
+        if (user.HasTag(StatusTag.DmgOutDown)) raw *= 0.8f;
+        if (target.HasTag(StatusTag.DmgInDown)) raw *= 0.9f;
 
         return Mathf.Max(0, Mathf.RoundToInt(raw));
     }
 
     enum StatusAxis { For, Int, Agi, Def }
+
     float ApplyStatMult(SlimeUnit user, StatusAxis ax)
     {
         float mul = 1f;
+        if (user == null || user.statuses == null) return mul;
+
         foreach (var s in user.statuses)
         {
-            if (!s.IsActive) continue;
+            if (s == null || !s.IsActive || s.def == null) continue;
+
             switch (ax)
             {
                 case StatusAxis.For: mul *= s.def.MulFor(); break;
@@ -201,106 +325,15 @@ public class ActionSO : ScriptableObject
         }
         return mul;
     }
-    
-    // --- PUBLIC: version "je force la cible" ---
-public void ExecuteOnTarget(SlimeUnit user, SlimeUnit target, List<SlimeUnit> allies, List<SlimeUnit> enemies)
+}
+
+/// <summary>
+/// Petit status concret pour les buffs % ad-hoc (addPercentFor / Int / Agi / Def).
+/// </summary>
+public class SimplePercentStatus : StatusSO
 {
-    if (!CanPay(user)) { Debug.Log($"{user.slimeName} n'a pas assez de mana pour {actionName}"); return; }
-    var forcedTargets = ResolveForcedTargets(user, target, allies, enemies);
-    if (forcedTargets.Count == 0) { Debug.Log($"{actionName}: pas de cible valide."); return; }
-
-    user.SpendMana(manaCost);
-    ApplyToTargets(user, forcedTargets);
+    // On utilise les champs percentFor / percentInt / percentAgi / percentDef hérités.
+    // Pas besoin d'ajouter de logique : les méthodes MulFor/MulInt/MulAgi/MulDef
+    // de StatusSO suffisent.
 }
 
-// --- PRIVATE: construit la liste des cibles selon le mode ---
-List<SlimeUnit> ResolveForcedTargets(SlimeUnit user, SlimeUnit target, List<SlimeUnit> allies, List<SlimeUnit> enemies)
-{
-    var res = new List<SlimeUnit>();
-    switch (targetMode)
-    {
-        case TargetMode.EnemySingle:
-            if (target && enemies.Contains(target) && target.IsAlive && !target.HasTag(StatusTag.Untargetable))
-                res.Add(target);
-            break;
-        case TargetMode.AllySingle:
-            if (target && allies.Contains(target) && target.IsAlive)
-                res.Add(target);
-            break;
-        default:
-            // pour Self/All etc., on retombe sur la résolution classique
-            res = ResolveTargets(user, allies, enemies);
-            break;
-    }
-    return res;
-}
-
-// --- FACTORISATION: applique dégâts/soins/effets à une liste de cibles ---
-// Copie le corps que tu as déjà dans Execute(...) pour éviter la duplication.
-void ApplyToTargets(SlimeUnit user, List<SlimeUnit> targets)
-{
-    foreach (var t in targets)
-    {
-        // Heal
-        if (doesHeal)
-        {
-            int heal = Mathf.RoundToInt(user.Int * ApplyStatMult(user, StatusAxis.Int) * healPercentInt);
-            t.Heal(heal);
-            Debug.Log($"{user.slimeName} soigne {t.slimeName} de {heal} PV ({actionName})");
-        }
-
-        // Damage
-        if (doesDamage)
-        {
-            int total = 0;
-            if (hits <= 1 || !randomSplitHits)
-            {
-                int raw = ComputeRaw(user, t);
-                total = t.TakeDamage(raw, damageKind);
-                Debug.Log($"{user.slimeName} → {t.slimeName} subit {total} ({actionName})");
-            }
-            else
-            {
-                int n = Random.Range(2, Mathf.Min(hits,5)+1);
-                for (int i=0;i<n;i++)
-                {
-                    int raw = ComputeRaw(user, t) * (i+1) / n;
-                    int d = t.TakeDamage(raw, damageKind);
-                    total += d;
-                    Debug.Log($"{actionName} coup {i+1}/{n}: {d}");
-                }
-            }
-        }
-
-        // Drain Mana
-        if (drainMana && drainManaPercentOfTargetRemaining > 0f)
-        {
-            int steal = Mathf.CeilToInt(t.Mana * drainManaPercentOfTargetRemaining);
-            t.Mana = Mathf.Max(0, t.Mana - steal);
-            user.Mana += steal;
-            Debug.Log($"{user.slimeName} draine {steal} Mana à {t.slimeName}");
-        }
-
-        // Status direct
-        if (applyStatus != null && !t.HasTag(StatusTag.Immunity))
-        {
-            t.AddStatus(applyStatus, applyStatusStacks, applyStatusTurns);
-            Debug.Log($"{t.slimeName} reçoit {applyStatus.statusName} ({applyStatusTurns}t)");
-        }
-
-        // Buff/Debuff ad-hoc %
-        if (addPercentFor != 0 || addPercentInt != 0 || addPercentAgi != 0 || addPercentDef != 0)
-        {
-            var temp = ScriptableObject.CreateInstance<StatusSO>();
-            temp.statusName = "Modif%";
-            temp.percentFor = addPercentFor;
-            temp.percentInt = addPercentInt;
-            temp.percentAgi = addPercentAgi;
-            temp.percentDef = addPercentDef;
-            t.AddStatus(temp, 1, applyStatusTurns>0?applyStatusTurns:2);
-            Debug.Log($"{t.slimeName} gagne modif % stats ({actionName})");
-        }
-    }
-}
-
-}

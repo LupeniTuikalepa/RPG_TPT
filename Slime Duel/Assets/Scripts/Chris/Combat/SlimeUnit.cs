@@ -1,4 +1,5 @@
-using System;                                // << NEW
+using System;
+using System.Collections;                  // <<< ajouté pour les coroutines
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -28,12 +29,22 @@ public class SlimeUnit : MonoBehaviour
     public int PV, PVMax, Mana, ManaMax, Agi, For, Int, Def;
     public bool IsAlive => PV > 0;
 
-    // === NEW: évènement & guard de mort ===
+    // Mort
     public event Action<SlimeUnit> Died;
     public bool deathHandled = false;
 
     // Statuts actifs
     public readonly List<StatusInstance> statuses = new();
+
+    // ======== VISUEL (flash dégâts / soin) ========
+    [Header("Visuel")]
+    public SpriteRenderer spriteRenderer;            // sprite du slime
+    public Color hitFlashColor  = Color.red;        // couleur quand il prend des dégâts
+    public Color healFlashColor = Color.green;      // couleur quand il est soigné
+    public float flashDuration  = 0.12f;
+
+    private Color baseColor = Color.white;
+    private Coroutine flashRoutine;
 
     void Awake()
     {
@@ -60,6 +71,12 @@ public class SlimeUnit : MonoBehaviour
             equippedItem.OnEquip(this, itemRuntime);
         }
 
+        // Visuel : récupère le SpriteRenderer si non assigné
+        if (!spriteRenderer)
+            spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer)
+            baseColor = spriteRenderer.color;
+
         ClampRuntime();
     }
 
@@ -71,10 +88,17 @@ public class SlimeUnit : MonoBehaviour
 
     public void Heal(int v)
     {
+        int before = PV;
         PV = Mathf.Min(PVMax, PV + Mathf.Abs(v));
+
+        if (PV > before)
+            FlashHeal();
     }
 
-    public void HealPercent(float p){ Heal(Mathf.CeilToInt(PVMax * Mathf.Clamp01(p))); }
+    public void HealPercent(float p)
+    {
+        Heal(Mathf.CeilToInt(PVMax * Mathf.Clamp01(p)));
+    }
 
     public int TakeDamage(int raw, DamageKind kind)
     {
@@ -84,33 +108,35 @@ public class SlimeUnit : MonoBehaviour
             : Mathf.Max(1, Mathf.RoundToInt(raw * (100f / (100f + Def))));
         PV = Mathf.Max(0, PV - dmg);
 
+        if (dmg > 0)
+            FlashHit();
+
         equippedItem?.OnReceiveHit(this, null, dmg, itemRuntime);
 
-        // === NEW: check mort ===
         if (PV == 0 && !deathHandled) Die();
 
         return dmg;
     }
 
-    // ======== NEW: Mort ========
+    // ======== Mort ========
     public void Die()
     {
         if (deathHandled) return;
         deathHandled = true;
 
         Debug.Log($"{slimeName} est K.O.");
-        CombatLogUI.I?.Log(this, $"{slimeName} est K.O.", true); // <<< AJOUT
+        CombatLogUI.I?.Log(this, $"{slimeName} est K.O.", true);
         try { Died?.Invoke(this); } catch { /* ignore */ }
         BattleSystem.I?.OnUnitDied(this);
 
-        gameObject.SetActive(false); // disparaît visuellement
+        gameObject.SetActive(false);
     }
 
     // ======== Item Hooks ========
-    public void BeginBattle()       { equippedItem?.OnBattleStart(this, itemRuntime); ClampRuntime(); }
-    public void BeginTurn()         { equippedItem?.OnTurnStart(this, itemRuntime);   ClampRuntime(); }
-    public void OnAttack(SlimeUnit t)   => equippedItem?.OnAttack(this, t, itemRuntime);
-    public void OnKill(SlimeUnit v)     { equippedItem?.OnKill(this, v, itemRuntime); ClampRuntime(); }
+    public void BeginBattle()        { equippedItem?.OnBattleStart(this, itemRuntime); ClampRuntime(); }
+    public void BeginTurn()          { equippedItem?.OnTurnStart(this, itemRuntime);   ClampRuntime(); }
+    public void OnAttack(SlimeUnit t)=> equippedItem?.OnAttack(this, t, itemRuntime);
+    public void OnKill(SlimeUnit v)  { equippedItem?.OnKill(this, v, itemRuntime);     ClampRuntime(); }
     public void OnSpellCast(SlimeUnit t)=> equippedItem?.OnSpellCast(this, t, itemRuntime);
 
     // ======== Status System ========
@@ -139,10 +165,10 @@ public class SlimeUnit : MonoBehaviour
         foreach (var s in statuses)
             if (s.IsActive) s.def.OnTurnEnd(this, s);
 
-        for(int i=statuses.Count-1;i>=0;i--)
+        for(int i = statuses.Count - 1; i >= 0; i--)
         {
             statuses[i].turns--;
-            if (statuses[i].turns<=0) statuses.RemoveAt(i);
+            if (statuses[i].turns <= 0) statuses.RemoveAt(i);
         }
     }
 
@@ -261,6 +287,27 @@ public class SlimeUnit : MonoBehaviour
         }
     }
 
+    // ======== FLASH VISUEL ========
+    void StartFlash(Color c)
+    {
+        if (!spriteRenderer) return;
+
+        if (flashRoutine != null)
+            StopCoroutine(flashRoutine);
+
+        flashRoutine = StartCoroutine(FlashRoutine(c));
+    }
+
+    IEnumerator FlashRoutine(Color c)
+    {
+        spriteRenderer.color = c;
+        yield return new WaitForSeconds(flashDuration);
+        spriteRenderer.color = baseColor;
+        flashRoutine = null;
+    }
+
+    void FlashHit()  => StartFlash(hitFlashColor);
+    void FlashHeal() => StartFlash(healFlashColor);
 }
 
 // Runtime status instance
@@ -278,6 +325,7 @@ public class StatusInstance
         this.turns = turns;
     }
 }
+
 
 
 

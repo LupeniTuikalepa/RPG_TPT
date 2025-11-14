@@ -1,3 +1,4 @@
+using System.Collections;                    // <<< important pour les coroutines
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -19,6 +20,8 @@ public class BattleSystem : MonoBehaviour
 
     // Bloque Update pendant le choix du joueur
     private bool waitingForPlayer = false;
+    // NEW : empêche de lancer plusieurs coroutines IA
+    private bool enemyTurnRunning = false;
 
     void Start()
     {
@@ -28,30 +31,45 @@ public class BattleSystem : MonoBehaviour
 
     void Update()
     {
-        // Si on attend le joueur → ne rien faire
-        if (Active == null || waitingForPlayer) return;
+        if (Active == null) return;
 
-        // Stun / Root => passe le tour
-        if (Active.HasTag(StatusTag.Stun) || Active.HasTag(StatusTag.Root))
-        {
-            Debug.Log($"{Active.slimeName} ne peut pas jouer !");
-            CombatLogUI.I?.Log(Active, $"{Active.slimeName} ne peut pas jouer !");
-            EndTurn();
-            return;
-        }
-
-        // Si c’est un slime joueur : attendre l'UI
+        // Tour joueur : on ne fait rien ici, c'est l'UI qui gère
         if (teamA.Contains(Active)) return;
 
-        // ---------- IA ----------
+        // Si un tour IA est déjà en cours → on ne relance pas
+        if (enemyTurnRunning) return;
+
+        // Lance la coroutine du tour IA
+        StartCoroutine(EnemyTurnRoutine());
+    }
+
+    // === Tour de l'IA avec délai ===
+    IEnumerator EnemyTurnRoutine()
+    {
+        enemyTurnRunning = true;
+
+        // Si stun/root : il ne joue pas
+        if (Active.HasTag(StatusTag.Stun) || Active.HasTag(StatusTag.Root))
+        {
+            CombatLogUI.I?.Log(Active, $"{Active.slimeName} ne peut pas jouer !");
+            yield return new WaitForSeconds(0.8f);
+            EndTurn();
+            enemyTurnRunning = false;
+            yield break;
+        }
+
         var usable = Active.actions.Where(a => a != null && a.CanPay(Active)).ToList();
         if (usable.Count == 0)
         {
-            Debug.Log($"{Active.slimeName} ne peut rien faire.");
             CombatLogUI.I?.Log(Active, $"{Active.slimeName} ne peut rien faire.");
+            yield return new WaitForSeconds(0.8f);
             EndTurn();
-            return;
+            enemyTurnRunning = false;
+            yield break;
         }
+
+        // Petit délai AVANT l'action (pour le suspense)
+        yield return new WaitForSeconds(1.0f);
 
         var act = usable[Random.Range(0, usable.Count)];
 
@@ -60,7 +78,12 @@ public class BattleSystem : MonoBehaviour
 
         CombatLogUI.I?.Log(Active, $"{Active.slimeName} utilise {act.actionName}");
         act.Execute(Active, allies, enemies);
+
+        // Petit délai APRÈS l'action (optionnel)
+        yield return new WaitForSeconds(0.2f);
+
         EndTurn();
+        enemyTurnRunning = false;
     }
 
     // ======== Tour suivant ========
@@ -85,6 +108,8 @@ public class BattleSystem : MonoBehaviour
         Active.TickStartOfTurn();
         Debug.Log($"--- Tour de {Active.slimeName} ({Active.classe}) ---");
         CombatLogUI.I?.Log(Active, $"Tour de {Active.slimeName}");
+
+        enemyTurnRunning = false;   // reset au cas où
 
         // Tour joueur → afficher commandes
         if (teamA.Contains(Active))
@@ -131,15 +156,13 @@ public class BattleSystem : MonoBehaviour
         return new List<SlimeUnit> { user };
     }
 
-    // ======== Appelé par l'UI dans l'ancienne logique (multi-cible / self) ========
+    // ======== Appelé par l'UI (multi-cible / self) ========
     public void PlayerCastsSkill(SlimeUnit user, ActionSO act, SlimeUnit target)
     {
         var allies  = teamA.Contains(user) ? teamA.ToList() : teamB.ToList();
         var enemies = teamA.Contains(user) ? teamB.ToList() : teamA.ToList();
 
-        Debug.Log($"🎯 {user.slimeName} lance {act.actionName}");
         CombatLogUI.I?.Log(user, $"{user.slimeName} utilise {act.actionName}");
-
         act.Execute(user, allies, enemies);
         EndTurn();
     }
@@ -147,11 +170,10 @@ public class BattleSystem : MonoBehaviour
     // ======== Mort d'une unité ========
     public void OnUnitDied(SlimeUnit u)
     {
-        // Si le joueur était en train de choisir une action et que l’actif meurt
         if (Active == u)
         {
             CombatUI.I?.HideAll();
-            EndTurn(); // passe au suivant sans planter
+            EndTurn();
         }
     }
 
@@ -168,9 +190,8 @@ public class BattleSystem : MonoBehaviour
     // ======== Attaque de base joueur ========
     public void PlayerBasicAttack(SlimeUnit user, SlimeUnit target)
     {
-        int raw = Mathf.Max(1, user.For); // simple: dégâts = For
+        int raw = Mathf.Max(1, user.For);
         int dealt = target.TakeDamage(raw, DamageKind.Physical);
-        Debug.Log($"{user.slimeName} attaque {target.slimeName} ({dealt} dmg)");
 
         CombatLogUI.I?.Log(user, $"{user.slimeName} attaque {target.slimeName} ({dealt} dégâts)");
 
@@ -189,6 +210,7 @@ public class BattleSystem : MonoBehaviour
         EndTurn();
     }
 }
+
 
 
 
