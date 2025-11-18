@@ -11,13 +11,22 @@ public class BattleSystem : MonoBehaviour
 
     [Header("Équipe A (Joueur)")]
     public SlimeUnit[] teamA = new SlimeUnit[3];
-    
+
     [Header("Équipe B (IA)")]
     public SlimeUnit[] teamB = new SlimeUnit[3];
+
+    [Header("Génération équipe joueur")]
+    public BaseItemSO[] playerItemPool;   // objets possibles pour les slimes joueur
+    public Skin[]       playerSkinPool;   // skins possibles pour les slimes joueur
 
     [Header("Génération de vagues ennemies")]
     public BaseItemSO[] enemyItemPool;   // objets possibles pour les ennemis
     public Skin[]       enemySkinPool;   // skins possibles pour les ennemis
+
+    [Header("HUD ennemis pour les vagues suivantes")]
+    public SlimeHUD enemyHudPrefab;      // prefab de HUD (SlimeHUD)
+    public Transform enemyHudParent;     // parent (colonne de droite dans le Canvas)
+    private readonly List<SlimeHUD> enemySpawnedHUDs = new();
 
     private readonly List<SlimeUnit> turnOrder = new();
     private int turnIndex = -1;
@@ -28,8 +37,18 @@ public class BattleSystem : MonoBehaviour
     // empêche de lancer plusieurs coroutines IA
     private bool enemyTurnRunning = false;
 
+    // numéro de vague (0 = combat initial, 1 = deuxième vague, etc.)
+    private int waveIndex = 0;
+
     void Start()
     {
+        // =====================================================
+        //   Génère l’équipe du joueur de façon aléatoire (lvl 1)
+        // =====================================================
+        InitRandomPlayerTeam();
+
+        // (les ennemis du premier combat restent ceux placés dans la scène)
+
         BuildTurnOrder();
 
         // orientation des sprites
@@ -40,6 +59,36 @@ public class BattleSystem : MonoBehaviour
             if (s) s.SetFacingLeft(true);    // équipe ennemie → regarde vers la gauche
 
         NextTurnStart();
+    }
+
+    // ---------------------------------------------------------
+    //  Génère / configure les 3 slimes de l’équipe A
+    // ---------------------------------------------------------
+    void InitRandomPlayerTeam()
+    {
+        if (teamA == null) return;
+
+        for (int i = 0; i < teamA.Length; i++)
+        {
+            var s = teamA[i];
+            if (!s) continue;
+
+            // Classe aléatoire
+            var cls = GetRandomClass();
+
+            // Objet aléatoire dans le pool joueur
+            BaseItemSO item = null;
+            if (playerItemPool != null && playerItemPool.Length > 0)
+                item = playerItemPool[Random.Range(0, playerItemPool.Length)];
+
+            // Skin aléatoire dans le pool joueur
+            Skin skin = null;
+            if (playerSkinPool != null && playerSkinPool.Length > 0)
+                skin = playerSkinPool[Random.Range(0, playerSkinPool.Length)];
+
+            // Configure le slime pour ce combat – niveau 1, côté joueur (isEnemy = false)
+            s.ConfigureForBattle(cls, 1, item, skin, false);
+        }
     }
 
     void Update()
@@ -135,7 +184,7 @@ public class BattleSystem : MonoBehaviour
         {
             turnIndex = (turnIndex + 1) % turnOrder.Count;
             Active = turnOrder[turnIndex];
-        } 
+        }
         while (Active == null || !Active.IsAlive);
 
         Active.TickStartOfTurn();
@@ -247,7 +296,6 @@ public class BattleSystem : MonoBehaviour
     //              GESTION DES VAGUES  (bouton "Suivant")
     // =====================================================================
 
-    // appelé par CombatResultUI quand on clique sur "Suivant"
     public void StartNextWave()
     {
         // si l'équipe du joueur est morte, on ne relance pas
@@ -256,6 +304,8 @@ public class BattleSystem : MonoBehaviour
             Debug.Log("Impossible de lancer une nouvelle vague : l'équipe A est vaincue.");
             return;
         }
+
+        waveIndex++;
 
         // niveau de départ = plus haut niveau des ennemis actuels (ou 1)
         int previousEnemyLevel = 1;
@@ -278,8 +328,7 @@ public class BattleSystem : MonoBehaviour
                 ? enemySkinPool[Random.Range(0, enemySkinPool.Length)]
                 : null;
 
-            // méthode ajoutée dans SlimeUnit
-            e.ConfigureForBattle(cls, newLevel, item, skin, true);
+            e.ConfigureForBattle(cls, newLevel, item, skin, true); // méthode dans SlimeUnit
         }
 
         // ré-oriente les sprites
@@ -288,19 +337,29 @@ public class BattleSystem : MonoBehaviour
         foreach (var s in teamB)
             if (s) s.SetFacingLeft(true);
 
-        // reset état du système
+        // HUD ENNEMIS : on recrée des HUD pour la nouvelle vague
+        if (enemyHudPrefab && enemyHudParent)
+        {
+            foreach (var hud in enemySpawnedHUDs)
+                if (hud) Destroy(hud.gameObject);
+            enemySpawnedHUDs.Clear();
+
+            foreach (var e in teamB)
+            {
+                if (!e) continue;
+                var hud = Instantiate(enemyHudPrefab, enemyHudParent);
+                hud.Bind(e);
+                enemySpawnedHUDs.Add(hud);
+            }
+        }
+
         waitingForPlayer = false;
         enemyTurnRunning = false;
         Active = null;
         enabled = true;
 
-        // reconstruit l'ordre de tour
         BuildTurnOrder();
-
-        // masque l'écran de résultat
         CombatResultUI.I?.HideAll();
-
-        // relance le combat
         NextTurnStart();
     }
 
@@ -310,6 +369,7 @@ public class BattleSystem : MonoBehaviour
         return (SlimeClass)values.GetValue(Random.Range(0, values.Length));
     }
 }
+
 
 
 
